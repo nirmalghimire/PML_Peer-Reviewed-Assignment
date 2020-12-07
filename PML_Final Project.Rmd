@@ -1,0 +1,121 @@
+---
+title: "PML_Final Project"
+author: "Nirmal Ghimire"
+date: "12/7/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Background
+**Prologue**
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+
+***Introduction***
+This project uses data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. They were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: "exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front" (Class E)(Velloso, Bulling, Gellersen, Ugulino, & Fuks, 2013). Read more: http://groupware.les.inf.puc-rio.br/har#ixzz6fttLBk3d
+
+1. The goal of our project is to predict the manner in which they did the exercise.
+2. The "classe" variable in the training set is the outcome variable. 
+3. There are variables to predict the "classe" with.
+
+Let's kick start this project:
+
+### Invoking the required libraries
+```{r, warning=F, error=F, message=F}
+library(caret)
+library(rpart)
+library(ggplot2)
+library(rpart.plot)
+library(rattle)
+library(randomForest)
+library(corrplot)
+library(partykit)
+```
+
+### Getting, Preparing, and Exploring the Data
+```{r, cache=TRUE}
+trainingdata<-read.csv("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", header=TRUE)
+testcases<-read.csv("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", header=TRUE)
+
+#Checking the Dimension of the Data files.
+dim(trainingdata)
+dim(testcases)
+```
+
+Looking at the dimensions, we see that there are total of 19,622 observations in the trainingdata and 20 in the testcases. 
+There are total of 160 different variables, and the variable "classe" is going to be the outcome variable. 
+Before that, I want to reduce the number of variables that have near zero values (NZV)in both trainingdata, and testcases. 
+```{r}
+NZV<-nearZeroVar(trainingdata)
+trainingdata<-trainingdata[, -NZV]
+testcases<-testcases[, -NZV]
+```
+
+Wow!! We got rid of total of 60 variables that near zero values. 
+
+It also looks that the variables 1 through 5 are related to ID variables. So, let's get rid of them. 
+```{r}
+trainingdata<-trainingdata[, -(1:5)]
+testcases<-testcases[, -(1:5)]
+```
+
+As we got rid of the ID variables, we now have total of 95 variables. We can still get rid of some of the variables that have most NAs. 
+
+```{r}
+NAs<- sapply(trainingdata, function(x) mean(is.na(x)))>0.95
+trainingdata<-trainingdata[, NAs==FALSE]
+testcases<-testcases[, NAs==FALSE]
+```
+
+So far, we have been able to boil down the total number of variables to 54 from 160. 
+
+They still have a lot of, i.e., 54 variables and, so far, I don't which I want to get rid of. So, let's run a correlation and see what stands out. 
+
+```{r, warning=F, error=F, message=F}
+citation("corrplot")
+Matrixcor<-cor(trainingdata[,-54])
+corrplot(Matrixcor, type="lower", order="FPC", method="color", tl.cex=0.5)
+```
+
+Setting correlation cutoff statisticts to 0.75, I have been able to boil down the total number of variables to 21.
+
+## Training, Testing, and Validation
+Now, lets break the trainingdata into training and testing sets. We are going to break total observations into 70 and 30%.
+
+```{r}
+TrainD<-createDataPartition(trainingdata$classe, p=0.6, list=FALSE)
+trainingset<-trainingdata[TrainD, ]
+testset<-trainingdata[-TrainD, ]
+dim(trainingset)
+dim(testset)
+```
+
+There are total of 11,776 observations in trainingset and 7846 observations in testset. 
+
+### Fitting Models
+I am going to a model on the training set.  
+```{r, warning=FALSE, error=FALSE, message=FALSE, cache=TRUE}
+set.seed(123)
+model1<-rpart(classe~., data=trainingset, method="class")
+fancyRpartPlot(model1)
+```
+
+There are different number of trees and different number of interaction depths involved. 
+
+Now, let’s plot the predicted result from the testing set using our model fit in the training set.
+```{r}
+predmod<-predict(model1, testset, type="class")
+ctree<-confusionMatrix(predmod, as.factor(testset$classe))
+ctree
+```
+
+Looking at the results, the algorithm works good. Now, lets pass the model on the validation set.
+
+```{r}
+valid<- predict(model1, newdata=testcases)
+valid
+```
+
+The results output are helpful answering the curse project prediction quiz. 
