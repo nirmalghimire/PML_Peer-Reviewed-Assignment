@@ -1,0 +1,14 @@
+base
+lattice
+ggplot2
+caret
+rpart
+rpart.plot
+tibble
+bitops
+rattle
+randomForest
+corrplot
+libcoin
+mvtnorm
+partykit
